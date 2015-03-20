@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en-US" ng-app="iasperAuthDemo">
+<head>
+    <meta charset="UTF-8">
+    <title>Iasper Auth</title>
+
+    <script src="bower_components/angular/angular.min.js"></script>
+    <script src="bower_components/angular-ui-router/release/angular-ui-router.js"></script>
+
+    <script src="src/module.js"></script>
+    <script src="src/$state.toState.js"></script>
+    <script src="src/states.js"></script>
+    <!-- adapters (required) -->
+    <script src="adapters/auth/dummy.js"></script>
+    <script src="adapters/session/localStorage.js"></script>
+
+    <script src="demo/app.js"></script>
+    <script src="demo/states.js"></script>
+</head>
+<body ui-view>
+
+</body>
+</html>
