@@ -7,10 +7,5 @@ angular.module('iasperAuthDemo', [
 				throw error;
 			}
 		});
-
-		$rootScope.$on(ia_AUTH_EVENT.login, function(data) {
-			debugger
-			$rootScope.user = data;
-		});
 	})
 ;
