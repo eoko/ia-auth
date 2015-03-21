@@ -224,7 +224,7 @@ angular.module('ia.auth')
 				 * @param {string[]|null} roles
 				 * @returns {boolean}
 				 */
-				me.isAuthorized = function(roles) {
+				me.isAuthorizedRole = function(roles) {
 					if (roles) {
 						if (me.isAuthenticated()) {
 							// TODO roles
@@ -250,7 +250,7 @@ angular.module('ia.auth')
 					} else {
 						if (state.data) {
 							if (state.data.restricted) {
-								return me.isAuthenticated() && me.isAuthorized(state.data.roles);
+								return me.isAuthenticated() && me.isAuthorizedRole(state.data.roles);
 							} else {
 								return true;
 							}
@@ -271,7 +271,11 @@ angular.module('ia.auth')
 					var me = this,
 						toState = $state.toState;
 
-					if (resolved && me.isAuthenticated() && me.isAuthorizedState(toState)) {
+					if (me.isAuthenticated() && me.isAuthorizedState(toState)) {
+						if (!resolved) {
+							resolved = true;
+							$rootScope.$broadcast(ia_AUTH_EVENT.change, me.identity(), null);
+						}
 						return $q.when();
 					}
 
@@ -280,18 +284,10 @@ angular.module('ia.auth')
 						if (data) {
 							return $q(function(resolve, reject) {
 								if (me.isAuthenticated()) {
-									// TODO TODO TODO
 									if (me.isAuthorizedState(toState)) {
-										resolve();
-										// REM
-										//$rootScope.$broadcast(ia_AUTH_EVENT.resolved);
 										resolved = true;
-										// TODO 1ms may not be enough on any platform (if the change event
-										// is caught before this promise is done resolving, we will get back
-										// here because of the redirect -- hence infinite loop)
-										$timeout(function() {
-											$rootScope.$broadcast(ia_AUTH_EVENT.change, me.identity(), null);
-										}, 1);
+										resolve();
+										$rootScope.$broadcast(ia_AUTH_EVENT.change, me.identity(), null);
 									} else {
 										reject({
 											module: 'ia.auth',
