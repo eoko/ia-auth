@@ -5,11 +5,15 @@ angular.module('ia.auth')
 		return {
 			login: function(credentials) {
 				return $q.when({
-					username: 'dummy'
+					username: 'dummy',
+					roles: ['dumb']
 				});
 			},
 			logout: function() {
 				return $q.when(true);
+			},
+			parseRoles: function(userData) {
+				return userData && userData.roles;
 			},
 			isSameAuth: function(userData1, userData2) {
 				if (userData1) {

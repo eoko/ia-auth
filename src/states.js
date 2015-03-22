@@ -29,14 +29,9 @@ angular.module('ia.auth')
 		$stateProvider.state('ia-restricted', {
 			'abstract': true,
 			template: '<ui-view layout-fill>',
-			resolve: {
-				auth: ['iaAuth', function(iaAuth) {
-					return iaAuth.resolve();
-				}]
-			},
 			data: {
 				restricted: true,
-				roles: []
+				roles: false
 			}
 		});
 	})
@@ -46,36 +41,31 @@ angular.module('ia.auth')
 			config = iaAuth.config();
 
 		// forget return state on any state change
-		$rootScope.$on('$stateChangeStart', function() {
-			iaAuth.returnToState = iaAuth.returnToStateParams = null;
-		});
-
-		// redirect to login or forbidden when trying to access an unauthorized state
-		$rootScope.$on('$stateChangeError', function (event, toState, toParams, fromState, fromParams, error) {
-			var config = iaAuth.config();
-
-			if (error && error.module === 'ia.auth') {
-				if (error.type = 'unauthorized') {
-					handle(function() {
-						var toState = $state.toState,
-							toStateParams = $state.toStateParams;
-						$state.go(config.loginState, config.loginStateParams)
-							.then(function() {
-								iaAuth.returnToState = toState;
-								iaAuth.returnToStateParams = toStateParams;
-							});
-					});
-				} else if (error.type = 'forbidden') {
-					handle(function() {
-						$state.go(config.forbiddenState, config.forbiddenStateParams);
+		$rootScope.$on('$stateChangeStart', function(event, toState, toParams) {
+			if (toState.name === config.loginState) {
+				if (iaAuth.isAuthenticated()) {
+					event.preventDefault();
+					$state.go(config.indexState, config.indexStateParams);
+				}
+			} else if (iaAuth.helper.isStateRestricted(toState)) {
+				if (iaAuth.resolved) {
+					if (!iaAuth.isAuthorizedState(toState)) {
+						if (iaAuth.isAuthenticated()) {
+							event.preventDefault();
+							$state.go(config.forbiddenState, config.forbiddenStateParams);
+						} else {
+							event.preventDefault();
+							iaAuth.returnToState = toState;
+							iaAuth.returnToStateParams = toParams;
+							$state.go(config.loginState, config.loginStateParams);
+						}
+					}
+				} else {
+					event.preventDefault();
+					iaAuth.resolveIdentity().then(function() {
+						$state.go(toState, toParams);
 					});
 				}
-			}
-
-			function handle(fn) {
-				event.preventDefault();
-				error.handled = true;
-				fn();
 			}
 		});
 

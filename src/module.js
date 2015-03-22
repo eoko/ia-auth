@@ -1,5 +1,10 @@
 'use strict';
 
+/**
+ * Simple auth for ui.router.
+ *
+ * @see https://medium.com/opinionated-angularjs/techniques-for-authentication-in-angularjs-applications-7bbf0346acec
+ */
 angular.module('ia.auth', [
 	'ui.router'
 ]);
@@ -204,6 +209,10 @@ angular.module('ia.auth')
 					return iaAuthSession.data();
 				};
 
+				me.roles = function() {
+					return me.adapter.parseRoles(me.identity());
+				};
+
 				/**
 				 * Returns true if the current user is authenticated (that is, after a
 				 * login tentative has been successful **and** has returned an identity
@@ -227,8 +236,7 @@ angular.module('ia.auth')
 				me.isAuthorizedRole = function(roles) {
 					if (roles) {
 						if (me.isAuthenticated()) {
-							// TODO roles
-							return true;
+							return me.helper.rolesContains(roles, me.roles());
 						} else {
 							return false;
 						}
@@ -248,93 +256,25 @@ angular.module('ia.auth')
 					if (angular.isString(state)) {
 						return me.isAuthorizedState($state.get(state));
 					} else {
-						if (state.data) {
-							if (state.data.restricted) {
-								return me.isAuthenticated() && me.isAuthorizedRole(state.data.roles);
-							} else {
-								return true;
-							}
+						if (me.helper.isStateRestricted(state)) {
+							return me.isAuthenticated()
+								&& me.isAuthorizedRole(me.helper.parseStateRoles(state));
 						} else {
 							return true;
 						}
 					}
 				};
 
-				var resolved = false;
-				/**
-				 * Helper method to resolve identity on first access trial to a restricted
-				 * state.
-				 *
-				 * @returns {Promise}
-				 */
-				me.resolve = function() {
-					var me = this,
-						toState = $state.toState;
+				me.resolved = false;
 
-					if (me.isAuthenticated() && me.isAuthorizedState(toState)) {
-						if (!resolved) {
-							resolved = true;
-							$rootScope.$broadcast(ia_AUTH_EVENT.change, me.identity(), null);
-						}
-						return $q.when();
-					}
-
-					if (toState) {
-						var data = toState.data;
-						if (data) {
-							return $q(function(resolve, reject) {
-								if (me.isAuthenticated()) {
-									if (me.isAuthorizedState(toState)) {
-										resolved = true;
-										resolve();
-										$rootScope.$broadcast(ia_AUTH_EVENT.change, me.identity(), null);
-									} else {
-										reject({
-											module: 'ia.auth',
-											type: 'forbidden'
-										});
-									}
-								} else {
-									reject({
-										module: 'ia.auth',
-										type: 'unauthorized'
-									});
-								}
-							});
-						} else {
-							throw new Error('Missing data for state ' + toState.name);
-						}
-					} else {
-						throw new Error('Illegal State ($state.toState is missing)');
-					}
-				};
+				// TODO
+				me.resolveIdentity = function resolveIdentity() {
+					return $timeout(function() {
+						me.resolved = true;
+						$rootScope.$broadcast(me.events.change);
+					}, 300);
+				}
 			}
 		};
 	})
-	// REM
-	//.run(function($rootScope, $state, iaAuth) {
-	//	$rootScope.$on('$stateChangeError', function (event, toState, toParams, fromState, fromParams, error) {
-	//		var config = iaAuth.config();
-	//
-	//		if (error && error.module === 'ia.auth') {
-	//			if (error.type = 'unauthorized') {
-	//				handle(function() {
-	//					iaAuth.returnToState = $state.toState;
-	//					iaAuth.returnToStateParams = $state.toStateParams;
-	//					$state.go(config.loginState, config.loginStateParams);
-	//				});
-	//			} else if (error.type = 'forbidden') {
-	//				handle(function() {
-	//					$state.go(config.forbiddenState, config.forbiddenStateParams);
-	//				});
-	//			}
-	//		}
-	//
-	//		function handle(fn) {
-	//			event.preventDefault();
-	//			error.handled = true;
-	//			fn();
-	//		}
-	//	});
-	//})
 ;
