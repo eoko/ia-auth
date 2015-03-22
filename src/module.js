@@ -84,7 +84,7 @@ angular.module('ia.auth')
 			 *         };
 			 *     });
 			 */
-			adapter: 'iaAuthAdapter.Dummy',
+			adapter: 'iaAuthAdapter',
 			/**
 			* True to redirect on auth change.
 			*
@@ -155,7 +155,9 @@ angular.module('ia.auth')
 					if (angular.isString(adapter)) {
 						return $injector.invoke([adapter, function(adapter) {
 							return adapter;
-						}])
+						}]);
+					} else if (angular.isFunction(adapter)) {
+						return adapter();
 					} else {
 						return adapter;
 					}

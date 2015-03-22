@@ -1,7 +1,7 @@
 'use strict';
 
 angular.module('ia.auth')
-	.factory('iaAuthAdapter.Dummy', function($timeout, $q, iaAuthHelper) {
+	.factory('iaAuthAdapter', function($timeout, $q, iaAuthHelper) {
 		return {
 			login: function(credentials) {
 				return $q.when({

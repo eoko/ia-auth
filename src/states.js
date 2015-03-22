@@ -7,7 +7,7 @@ angular.module('ia.auth')
 			config = iaAuth.config();
 
 		// forget return state on any state change
-		$rootScope.$on('$stateChangeStart', function(event, toState, toParams) {
+		$rootScope.$on('$stateChangeStart', function onStateChangeStart(event, toState, toParams) {
 			if (toState.name === config.loginState) {
 				if (iaAuth.isAuthenticated()) {
 					event.preventDefault();
