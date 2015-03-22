@@ -197,7 +197,11 @@ angular.module('ia.auth')
 				 */
 				me.logout = function() {
 					var previousUserData = angular.copy(iaAuthSession.data());
-					return authAdapter.logout.apply(authAdapter, arguments)
+					return $q.when(
+						me.isAuthenticated()
+							? authAdapter.logout.apply(authAdapter, arguments)
+							: true
+					)
 						.then(function() {
 							return iaAuthSession.destroy();
 						})
