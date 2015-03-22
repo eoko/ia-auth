@@ -171,6 +171,9 @@ angular.module('ia.auth')
 				me.login = function(credentials) {
 					var previousUserData = angular.copy(iaAuthSession.data());
 					return authAdapter.login.apply(authAdapter, arguments)
+						.then(function() {
+							return authAdapter.resolveIdentity();
+						})
 						.then(function(userData) {
 							iaAuthSession
 								.create(userData)
@@ -182,12 +185,10 @@ angular.module('ia.auth')
 										$rootScope.$broadcast(ia_AUTH_EVENT.change, userData, previousUserData);
 									}
 								});
-						}, function(err) {
-							if (err === 'credentials') {
-								$rootScope.$broadcast(ia_AUTH_EVENT.loginFailed);
-							} else {
-								throw err;
-							}
+						})
+						.finally(function() {
+							// TODO maybe the error should be more specific?
+							$rootScope.$broadcast(ia_AUTH_EVENT.loginFailed);
 						});
 				};
 
@@ -271,14 +272,20 @@ angular.module('ia.auth')
 					}
 				};
 
+				// as long as identity has not been resolved (ie. read from client-side session),
+				// restricted routes won't be allow to resolve
 				me.resolved = false;
-
-				// TODO
 				me.resolveIdentity = function resolveIdentity() {
-					return $timeout(function() {
-						me.resolved = true;
-						$rootScope.$broadcast(me.events.change);
-					}, 300);
+					var previousUserData = angular.copy(iaAuthSession.data());
+					return authAdapter.resolveIdentity()
+						.finally(function() {
+							me.resolved = true;
+						})
+						.then(function(userData) {
+							if (!authAdapter.isSameAuth(previousUserData, userData)) {
+								$rootScope.$broadcast(ia_AUTH_EVENT.change, userData, previousUserData);
+							}
+						});
 				}
 			}
 		};

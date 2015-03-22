@@ -30,6 +30,13 @@ angular.module('ia.auth')
 					event.preventDefault();
 					iaAuth.resolveIdentity().then(function() {
 						$state.go(toState, toParams);
+					}, function(err) {
+						if (err && err.type === 'ia-auth:unauthenticated') {
+							// that will trigger auth logic now that we are resolved
+							$state.go(toState, toParams);
+						} else {
+							throw err;
+						}
 					});
 				}
 			}
