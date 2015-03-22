@@ -43,11 +43,13 @@ Examples:
 
     // State will be restricted to authenticated users (any roles)
     $state.state('restrictedState', {
-        parent: 'ia-restricted'
+        data: {
+            restricted: true
+        }
     });
 
     // Restrict to some roles
-    $state.state('ia-restricted.restrictedState', {
+    $state.state('restrictedState.child', {
         data: {
             roles: ['user', 'admin']
         }

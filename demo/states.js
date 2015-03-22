@@ -28,8 +28,10 @@ angular.module('ia.auth')
 			// base for restricted views
 			.state('app', {
 				'abstract': true,
-				parent: 'ia-restricted',
-				template: '<ui-view></ui-view>'
+				template: '<ui-view></ui-view>',
+				data: {
+					restricted: true
+				}
 			})
 			// restricted view
 			.state('app.index', {
@@ -51,23 +53,22 @@ angular.module('ia.auth')
 			// restricted to authenticated users
 			.state('res', {
 				url: '^/res',
-				template: '<h1>Restricted</h1>',
-				parent: 'ia-restricted'
+				template: '<h1>Restricted</h1>'
 			})
 			// restricted to "dumb" role
 			.state('role-yes', {
 				url: '^/role-yes',
 				template: '<h1>Restricted by role (authorized for {{user.username}})</h1>',
-				parent: 'ia-restricted',
 				data: {
+					restricted: true,
 					roles: ['dumb']
 				}
 			})
 			.state('role-no', {
 				url: '^/role-no',
 				template: '<h1>Restricted by role (forbidden for {{user.username}})</h2>',
-				parent: 'ia-restricted',
 				data: {
+					restricted: true,
 					roles: ['dumber']
 				}
 			})

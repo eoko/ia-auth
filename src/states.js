@@ -1,40 +1,6 @@
 'use strict';
 
 angular.module('ia.auth')
-	/**
-	 * Declares "ia-restricted" route to be used as parent for restricted states.
-	 *
-	 * Examples:
-	 *
-	 *     // State will be restricted to authenticated users (any roles)
-	 *     $state.state('restrictedState', {
-	 *         parent: 'ia-restricted'
-	 *     });
-	 *
-	 *     // Restrict to some roles
-	 *     $state.state('ia-restricted.restrictedState', {
-	 *         data: {
-	 *             roles: ['user', 'admin']
-	 *         }
-	 *     });
-	 *
-	 *     // Disable restriction on a child state (does that make sense?)
-	 *     $state.state('restrictedState.unrestrictedChild', {
-	 *         data: {
-	 *             restricted: false
-	 *         }
-	 *     });
-	 */
-	.config(function($stateProvider) {
-		$stateProvider.state('ia-restricted', {
-			'abstract': true,
-			template: '<ui-view layout-fill>',
-			data: {
-				restricted: true,
-				roles: false
-			}
-		});
-	})
 	// state redirections
 	.run(function($rootScope, $state, iaAuth) {
 		var events = iaAuth.events,
