@@ -13,12 +13,11 @@ angular.module('ia.auth')
 			// login view
 			.state('login', {
 				url: '/login',
-				templateUrl: 'demo/login.html',
+				templateUrl: 'example/login.html',
 				controller: function($scope, iaAuth) {
 					$scope.login = function() {
 						return iaAuth.login($scope.credentials);
 					};
-					$scope.logout = iaAuth.login.bind(iaAuth);
 				}
 			})
 			.state('forbidden', {
@@ -37,8 +36,7 @@ angular.module('ia.auth')
 			.state('app.index', {
 				url: '',
 				template: '<h1>Index</h1>'
-					+ '<div>Hello {{user}}!</div>'
-					+ '<button ng-click="logout()">Disconnect</button>',
+					+ '<div>Hello {{user}}!</div>',
 				controller: function($scope, iaAuth) {
 					$scope.logout = function() {
 						iaAuth.logout();
@@ -50,8 +48,9 @@ angular.module('ia.auth')
 				url: '/pub',
 				template: '<h1>Public</h1>'
 			})
-			// restricted to authenticated users
+			// restricted to authenticated users (by parent 'app')
 			.state('res', {
+				parent: 'app',
 				url: '^/res',
 				template: '<h1>Restricted</h1>'
 			})

@@ -21,6 +21,13 @@ angular.module('ia.auth')
 		// fired when
 		redirect: 'ia-auth-redirect'
 	})
+	.constant('iaAuthERROR', {
+		is: function(err, type) {
+			return err && (err === type || err.type === type || (err instanceof Error && err.message === type));
+		},
+		invalidCredentials: 'ia.auth:invalid-creds',
+		invalidAuthData: 'ia.auth:auth-data-invalid'
+	})
 	.provider('iaAuth', function iaAuthProvider() {
 
 		var config = {
@@ -139,19 +146,26 @@ angular.module('ia.auth')
 		}
 
 		this.$get = function iaAuthFactory($q, $state, iaAuthSession, $rootScope, $timeout,
-										   ia_AUTH_EVENT, iaAuthHelper, $injector) {
+										   ia_AUTH_EVENT, iaAuthHelper, $injector, iaAuthERROR) {
+
+			var logger = window.console || {
+					log: function() {},
+					warn: function() {},
+					error: function() {}
+				};
+
 			return new iaAuth();
 
 			function iaAuth() {
 				var me = this;
 
-				me.events = ia_AUTH_EVENT;
+				var events = me.events = ia_AUTH_EVENT;
 
 				me.config = configure;
 
 				me.helper = iaAuthHelper;
 
-				var authAdapter = me.adapter = function resolveAdapter(adapter) {
+				var adapter = me.adapter = function resolveAdapter(adapter) {
 					if (angular.isString(adapter)) {
 						return $injector.invoke([adapter, function(adapter) {
 							return adapter;
@@ -163,72 +177,187 @@ angular.module('ia.auth')
 					}
 				}(me.config().adapter);
 
+				// TODO make it configurable? (considering it is already _injectable_)
+				var session = iaAuthSession;
+
+				var _resolved = false,
+					_authData = null,
+					_userData = null;
+
+				// once resolved, authentication and authorization methods will resolve
+				// synchronously (which is required for ui.router access control)
+				me.isResolved = function() {
+					return _resolved;
+				};
+
 				/**
 				 * Trigger a login tentative with the provided credentials.
 				 * @param {Object} credentials
 				 * @returns {Promise}
 				 */
 				me.login = function(credentials) {
-					var previousUserData = angular.copy(iaAuthSession.data());
-					return authAdapter.login.apply(authAdapter, arguments)
+					var args = arguments,
+						previousUserData;
+					return copySessionUserData()
+						.then(function(userData) {
+							previousUserData = userData;
+						})
 						.then(function() {
-							return authAdapter.resolveIdentity();
+							return adapter.login.apply(adapter, args);
+						})
+						.then(function(authData) {
+							_authData = authData;
+							return $q.all([
+								// load user data
+								adapter.resolveUserData(authData),
+								// persist auth data to session
+								session.authData(authData)
+							]).then(function(result) {
+								// persist user data to session (actually, offers the
+								// opportunity to do so to the session implementation)
+								return session.userData(result[0])
+									.then(function() {
+										return result[0];
+									});
+							});
 						})
 						.then(function(userData) {
-							iaAuthSession
-								.create(userData)
-								.then(function() {
-									$rootScope.$broadcast(ia_AUTH_EVENT.login, userData);
-									// REM
-									//$rootScope.$broadcast(ia_AUTH_EVENT.resolved);
-									if (!authAdapter.isSameAuth(previousUserData, userData)) {
-										$rootScope.$broadcast(ia_AUTH_EVENT.change, userData, previousUserData);
-									}
+							_userData = userData;
+							_resolved = true;
+							$rootScope.$broadcast(ia_AUTH_EVENT.login, userData);
+							$rootScope.$broadcast(ia_AUTH_EVENT.change, userData, previousUserData);
+						})
+						.catch(function(err) {
+							if (iaAuthERROR.is(err, iaAuthERROR.invalidCredentials)) {
+								$rootScope.$broadcast(ia_AUTH_EVENT.loginFailed);
+							}
+							throw err;
+						})
+					;
+				};
+
+				/**
+				 * Reads stored identity (i.e. auth + user data), and resolve when auth state is
+				 * known; that is, when authentication and authorization can be resolved synchronously.
+				 *
+				 * The returned promise will resolve whether we have an authenticated user or not.
+				 * Use `iaAuth.isAuthenticated()` after the promise has resolved to get the information.
+				 *
+				 * If the promise is rejected, that means we have encountered an unexpected error.
+				 *
+				 * @returns {$q.Promise}
+				 */
+				me.resolveIdentity = function resolveIdentity() {
+					// read session's auth data
+					return session.authData()
+						.then(function(authData) {
+							if (authData == null) {
+								// nothing stored in session, we're done
+								return $q.reject(iaAuthERROR.invalidAuthData);
+							} else {
+								// else validate it
+								return adapter.validateAuthData(authData);
+							}
+						})
+						.then(function(authData) {
+							if (authData == null) {
+								return $q.reject(iaAuthERROR.invalidAuthData);
+							} else {
+								return authData;
+							}
+						})
+						.then(function(authData) {
+							// we've got valid auth data, store it
+							_authData = authData;
+							// now, let's obtain user data
+							return session.userData()
+								.then(function(userData) {
+									// we've got everything we need, cool
+									// we're authenticated & resolved
+									// let's store this result
+									_userData = userData;
+									_resolved = true;
+									// and broadcast it
+									$rootScope.$broadcast(events.change, _userData, null);
+									// finally, let the promise resolve with undefined
 								});
 						})
-						.finally(function() {
-							// TODO maybe the error should be more specific?
-							$rootScope.$broadcast(ia_AUTH_EVENT.loginFailed);
-						});
+						.catch(function(err) {
+							if (iaAuthERROR.is(err, iaAuthERROR.invalidAuthData)) {
+								_authData = _userData = null;
+								_resolved = true;
+								// let the promise resolve with undefined
+							} else {
+								// we've got something unexpected here, we can't consider
+								// that auth is resolved
+								logger.error('Identity resolution failed because of unexpected error', err);
+								throw err;
+							}
+						})
+					;
 				};
+
+				/**
+				 * Reads current user data from session, reducing any error to warning, and
+				 * returns a copy of the original object if it exists.
+				 * @returns {$q.Promise}
+				 */
+				function copySessionUserData() {
+					return session.userData()
+						.then(function(userData) {
+							return angular.copy(userData);
+						}, function(err) {
+							// we don't really care about previous user data, so let's just
+							// warn about it and continue
+							logger.warn('Retrieving old user data from session failed', err);
+							return null;
+						});
+				}
 
 				/**
 				 * Triggers a logout tentative.
 				 * @returns {Promise}
 				 */
 				me.logout = function() {
-					var previousUserData = angular.copy(iaAuthSession.data());
-					return $q.when(
-						me.isAuthenticated()
-							? authAdapter.logout.apply(authAdapter, arguments)
-							: true
-					)
-						.then(function() {
-							return iaAuthSession.destroy();
+					var args = arguments,
+						previousUserData;
+					return copySessionUserData()
+						.then(function(userData) {
+							previousUserData = userData;
+							return me.isAuthenticated();
+						})
+						.then(function(authenticated) {
+							if (authenticated) {
+								return adapter.logout.apply(adapter, args);
+							}
 						})
 						.then(function() {
-							$rootScope.$broadcast(ia_AUTH_EVENT.logout);
-							$rootScope.$broadcast(ia_AUTH_EVENT.change, null, previousUserData);
-						});
+							_authData = _userData = null;
+							return session.clear();
+						})
+						.then(function() {
+							$rootScope.$broadcast(events.logout);
+							$rootScope.$broadcast(events.change, null, previousUserData);
+						})
+					;
 				};
 
 				me.identity = function() {
-					return iaAuthSession.data();
+					return _userData;
 				};
 
 				me.roles = function() {
-					return me.adapter.parseRoles(me.identity());
+					return adapter.parseRoles(_userData);
 				};
 
 				/**
-				 * Returns true if the current user is authenticated (that is, after a
-				 * login tentative has been successful **and** has returned an identity
-				 * -- i.e. some user data.
+				 * Returns true if the current user is authenticated, that is if we have
+				 * some valid auth data.
+				 *
 				 * @returns {boolean}
 				 */
 				me.isAuthenticated = function() {
-					var user = me.identity();
-					return !!user;
+					return !!_authData;
 				};
 
 				/**
@@ -271,22 +400,6 @@ angular.module('ia.auth')
 						}
 					}
 				};
-
-				// as long as identity has not been resolved (ie. read from client-side session),
-				// restricted routes won't be allow to resolve
-				me.resolved = false;
-				me.resolveIdentity = function resolveIdentity() {
-					var previousUserData = angular.copy(iaAuthSession.data());
-					return authAdapter.resolveIdentity()
-						.finally(function() {
-							me.resolved = true;
-						})
-						.then(function(userData) {
-							if (!authAdapter.isSameAuth(previousUserData, userData)) {
-								$rootScope.$broadcast(ia_AUTH_EVENT.change, userData, previousUserData);
-							}
-						});
-				}
 			}
 		};
 	})

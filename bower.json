@@ -2,16 +2,17 @@
   "name": "iasper-auth",
   "version": "0.0.0",
   "authors": [
-    "eric <eric.ortega@eoko.fr>"
+    "Rixo <eric.ortega@eoko.fr>"
   ],
   "license": "MIT",
   "private": true,
+  "main": "dist/ia-auth.js",
   "ignore": [
+    "**/*",
     "**/.*",
-    "node_modules",
-    "bower_components",
-    "test",
-    "tests"
+    "!README.md",
+    "!LICENSE.md",
+    "!dist"
   ],
   "dependencies": {
     "angularjs": "~1.3.15",
