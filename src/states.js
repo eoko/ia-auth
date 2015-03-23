@@ -2,7 +2,7 @@
 
 angular.module('ia.auth')
 	// state redirections
-	.run(function($rootScope, $state, iaAuth) {
+	.run(function($rootScope, $state, iaAuth, iaAuthERROR) {
 		var events = iaAuth.events,
 			config = iaAuth.config();
 
@@ -14,7 +14,7 @@ angular.module('ia.auth')
 					$state.go(config.indexState, config.indexStateParams);
 				}
 			} else if (iaAuth.helper.isStateRestricted(toState)) {
-				if (iaAuth.resolved) {
+				if (iaAuth.isResolved()) {
 					if (!iaAuth.isAuthorizedState(toState)) {
 						if (iaAuth.isAuthenticated()) {
 							event.preventDefault();
@@ -28,15 +28,12 @@ angular.module('ia.auth')
 					}
 				} else {
 					event.preventDefault();
+					// resolveIdentity resolves when auth state is known, authenticated or not,
+					// so we only need to handle success and we let failures (ie. unexpected
+					// errors) bubble up
 					iaAuth.resolveIdentity().then(function() {
+						// retry our state transition. this time, we'll pass in the resolved logic
 						$state.go(toState, toParams);
-					}, function(err) {
-						if (err && err.type === 'ia-auth:unauthenticated') {
-							// that will trigger auth logic now that we are resolved
-							$state.go(toState, toParams);
-						} else {
-							throw err;
-						}
 					});
 				}
 			}

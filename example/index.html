@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en-US" ng-app="iasperAuthDemo">
+<head>
+    <meta charset="UTF-8">
+    <title>Iasper Auth</title>
+
+    <script src="../bower_components/angular/angular.js"></script>
+    <script src="../bower_components/angular-ui-router/release/angular-ui-router.js"></script>
+
+    <script src="../src/module.js"></script>
+    <script src="../src/helper.js"></script>
+    <script src="../src/states.js"></script>
+    <!-- adapters (required) -->
+    <script src="../adapters/auth/dummy.js"></script>
+    <script src="../adapters/session/localStorage.js"></script>
+
+    <script src="example/app.js"></script>
+    <script src="example/states.js"></script>
+</head>
+
+<body>
+
+<button ng-click="logout()" ng-disabled="!user">Disconnect</button>
+
+<ui-view></ui-view>
+
+<ul>
+    <li><a ui-sref="app.index">Index (restricted)</a></li>
+    <li><a ui-sref="res">Restricted state</a></li>
+    <li><a ui-sref="pub">Public state</a></li>
+    <li><a ui-sref="role-yes">Restricted by role (authorized)</a></li>
+    <li><a ui-sref="role-no">Restricted by role (forbidden)</a></li>
+</ul>
+
+</body>
+</html>
