@@ -272,6 +272,9 @@ angular.module('ia.auth')
 							// now, let's obtain user data
 							return session.userData()
 								.then(function(userData) {
+									return adapter.resolveUserData(authData, userData);
+								})
+								.then(function(userData) {
 									// we've got everything we need, cool
 									// we're authenticated & resolved
 									// let's store this result
