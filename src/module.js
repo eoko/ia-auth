@@ -21,12 +21,63 @@ angular.module('ia.auth')
 		// fired when
 		redirect: 'ia-auth-redirect'
 	})
-	.constant('iaAuthERROR', {
-		is: function(err, type) {
+	.config(function($provide) {
+		var values = {
+			invalidCredentials: 'ia.auth:invalid-creds',
+			invalidAuthData: 'ia.auth:auth-data-invalid',
+			networkFailure: 'ia.auth:error:network',
+			serverFailure: 'ia.auth:error:server'
+		};
+
+		$provide.constant('iaAuthERROR', angular.extend(values, {
+			/**
+			 * Returns true if this is an error belonging
+			 * to this scope, else false.
+			 * @param err
+			 */
+			isScope: isScope,
+			/**
+			 * Returns true if the passed error is of the specified
+			 * type, else false.
+			 * @param err
+			 * @param type
+			 */
+			is: is,
+			/**
+			 * Returns a promise error handler that let its error
+			 * pass if it is an iaAuth.ERROR, else it returns the
+			 * default provided error.
+			 * @param defaultError
+			 * @return {Function}
+			 */
+			defaults: function(defaultError) {
+				return function(err) {
+					if (isScope(err)) {
+						return err;
+					} else {
+						if (defaultError instanceof defaultErroror) {
+							throw defaultError;
+						} else {
+							throw new Error(defaultError);
+						}
+					}
+				};
+			}
+		}));
+
+		function is(err, type) {
 			return err && (err === type || err.type === type || (err instanceof Error && err.message === type));
-		},
-		invalidCredentials: 'ia.auth:invalid-creds',
-		invalidAuthData: 'ia.auth:auth-data-invalid'
+		}
+
+		function isScope(err) {
+			var result = false;
+			angular.forEach(values, function(value, key) {
+				if (is(err, value)) {
+					result = true;
+				}
+			});
+			return true;
+		}
 	})
 	.provider('iaAuth', function iaAuthProvider() {
 
@@ -93,22 +144,22 @@ angular.module('ia.auth')
 			 */
 			adapter: 'iaAuthAdapter',
 			/**
-			* True to redirect on auth change.
-			*
-			* This option only regards the cases when the user's auth characteristics change; not
-			* the cases where the user tries to navigate to a state that they don't have access to.
-			*
-			* The user will be redirected in two cases:
-			*
-			*   - First, if they are on a state that they don't have access anymore
-			*     after the auth change, then they will be redirected to the index state.
-			*
-			*   - Second, if they are on the login page and they are authenticated
-			*     following the auth change, then they will be redirected to the `returnToState`
-			*     (that is the state they were before landing on the login state) -- provided
-			*     there is one and they have access to it, else they'll be redirected to the
-			*     `indexState`.
-			*/
+			 * True to redirect on auth change.
+			 *
+			 * This option only regards the cases when the user's auth characteristics change; not
+			 * the cases where the user tries to navigate to a state that they don't have access to.
+			 *
+			 * The user will be redirected in two cases:
+			 *
+			 *   - First, if they are on a state that they don't have access anymore
+			 *     after the auth change, then they will be redirected to the index state.
+			 *
+			 *   - Second, if they are on the login page and they are authenticated
+			 *     following the auth change, then they will be redirected to the `returnToState`
+			 *     (that is the state they were before landing on the login state) -- provided
+			 *     there is one and they have access to it, else they'll be redirected to the
+			 *     `indexState`.
+			 */
 			redirectOnChange: true,
 			/**
 			 * Whether to publish the user data (identity) to the $rootScope automatically.
@@ -146,7 +197,7 @@ angular.module('ia.auth')
 		}
 
 		this.$get = function iaAuthFactory($q, $state, iaAuthSession, $rootScope, $timeout,
-										   ia_AUTH_EVENT, iaAuthHelper, $injector, iaAuthERROR) {
+			ia_AUTH_EVENT, iaAuthHelper, $injector, iaAuthERROR) {
 
 			var logger = window.console || {
 					log: function() {},
@@ -164,6 +215,7 @@ angular.module('ia.auth')
 				me.config = configure;
 
 				me.helper = iaAuthHelper;
+				me.error = iaAuthERROR;
 
 				var adapter = me.adapter = function resolveAdapter(adapter) {
 					if (angular.isString(adapter)) {
@@ -201,37 +253,41 @@ angular.module('ia.auth')
 					return copySessionUserData()
 						.then(function(userData) {
 							previousUserData = userData;
-						})
-						.then(function() {
 							return adapter.login.apply(adapter, args);
 						})
 						.then(function(authData) {
 							_authData = authData;
-							return $q.all([
-								// load user data
-								adapter.resolveUserData(authData),
-								// persist auth data to session
-								session.authData(authData)
-							]).then(function(result) {
-								// persist user data to session (actually, offers the
-								// opportunity to do so to the session implementation)
-								return session.userData(result[0])
-									.then(function() {
-										return result[0];
-									});
-							});
-						})
-						.then(function(userData) {
-							_userData = userData;
-							_resolved = true;
-							$rootScope.$broadcast(ia_AUTH_EVENT.login, userData);
-							$rootScope.$broadcast(ia_AUTH_EVENT.change, userData, previousUserData);
-						})
-						.catch(function(err) {
-							if (iaAuthERROR.is(err, iaAuthERROR.invalidCredentials)) {
-								$rootScope.$broadcast(ia_AUTH_EVENT.loginFailed);
+							if (authData === null) {
+								throw null;
+							} else {
+								return $q.all([
+									// load user data
+									adapter.resolveUserData(authData),
+									// persist auth data to session
+									session.authData(authData)
+								])
+									.then(function(result) {
+										// persist user data to session (actually, offers the
+										// opportunity to do so to the session implementation)
+										return session.userData(result[0])
+											.then(function() {
+												return result[0];
+											});
+									})
+									.then(function(userData) {
+										_userData = userData;
+										_resolved = true;
+										$rootScope.$broadcast(ia_AUTH_EVENT.login, userData);
+										$rootScope.$broadcast(ia_AUTH_EVENT.change, userData, previousUserData);
+									})
+									.catch(function(err) {
+										if (iaAuthERROR.is(err, iaAuthERROR.invalidCredentials)) {
+											$rootScope.$broadcast(ia_AUTH_EVENT.loginFailed);
+										}
+										throw err;
+									})
+								;
 							}
-							throw err;
 						})
 					;
 				};
@@ -341,8 +397,7 @@ angular.module('ia.auth')
 						.then(function() {
 							$rootScope.$broadcast(events.logout);
 							$rootScope.$broadcast(events.change, null, previousUserData);
-						})
-					;
+						});
 				};
 
 				me.identity = function() {
