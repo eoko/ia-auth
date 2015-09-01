@@ -40,6 +40,11 @@ angular.module('ia.auth')
 			forbiddenState: 'forbidden',
 			forbiddenStateParams: undefined,
 			/**
+			 * State used instead of `indexState` for authenticated users.
+			 */
+			restrictedIndex: undefined,
+			restrictedIndexParams: undefined,
+			/**
 			 * @cfg {String|Object} Auth adapter. Can be the name of a service or an object,
 			 * that must implements the following interface:
 			 *

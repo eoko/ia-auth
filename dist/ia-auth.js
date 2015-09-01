@@ -21,64 +21,6 @@ angular.module('ia.auth')
 		// fired when
 		redirect: 'ia-auth-redirect'
 	})
-	.config(function($provide) {
-		var values = {
-			invalidCredentials: 'ia.auth:invalid-creds',
-			invalidAuthData: 'ia.auth:auth-data-invalid',
-			networkFailure: 'ia.auth:error:network',
-			serverFailure: 'ia.auth:error:server'
-		};
-
-		$provide.constant('iaAuthERROR', angular.extend(values, {
-			/**
-			 * Returns true if this is an error belonging
-			 * to this scope, else false.
-			 * @param err
-			 */
-			isScope: isScope,
-			/**
-			 * Returns true if the passed error is of the specified
-			 * type, else false.
-			 * @param err
-			 * @param type
-			 */
-			is: is
-			///**
-			// * Returns a promise error handler that let its error
-			// * pass if it is an iaAuth.ERROR, else it returns the
-			// * default provided error.
-			// * @param defaultError
-			// * @return {Function}
-			// */
-			//defaults: function(defaultError) {
-			//	return function(err) {
-			//		if (isScope(err)) {
-			//			return err;
-			//		} else {
-			//			if (defaultError instanceof defaultErroror) {
-			//				throw defaultError;
-			//			} else {
-			//				throw new Error(defaultError);
-			//			}
-			//		}
-			//	};
-			//}
-		}));
-
-		function is(err, type) {
-			return err && (err === type || err.type === type || (err instanceof Error && err.message === type));
-		}
-
-		function isScope(err) {
-			var result = false;
-			angular.forEach(values, function(value, key) {
-				if (is(err, value)) {
-					result = true;
-				}
-			});
-			return true;
-		}
-	})
 	.provider('iaAuth', function iaAuthProvider() {
 
 		var config = {
@@ -97,6 +39,11 @@ angular.module('ia.auth')
 			 */
 			forbiddenState: 'forbidden',
 			forbiddenStateParams: undefined,
+			/**
+			 * State used instead of `indexState` for authenticated users.
+			 */
+			restrictedIndex: undefined,
+			restrictedIndexParams: undefined,
 			/**
 			 * @cfg {String|Object} Auth adapter. Can be the name of a service or an object,
 			 * that must implements the following interface:
@@ -523,6 +470,74 @@ angular.module('ia.auth')
 'use strict';
 
 angular.module('ia.auth')
+  .config(function($provide) {
+    var values = {
+      invalidCredentials: 'ia.auth:invalid-creds',
+      invalidAuthData: 'ia.auth:auth-data-invalid',
+      networkFailure: 'ia.auth:error:network',
+      serverFailure: 'ia.auth:error:server'
+    };
+
+    $provide.constant('iaAuthERROR', angular.extend(values, {
+      /**
+       * Returns true if this is an error belonging
+       * to this scope, else false.
+       * @param err
+       */
+      isScope: isScope,
+      /**
+       * Returns true if the passed error is of the specified
+       * type, else false.
+       * @param err
+       * @param type
+       */
+      is: is
+      ///**
+      // * Returns a promise error handler that let its error
+      // * pass if it is an iaAuth.ERROR, else it returns the
+      // * default provided error.
+      // * @param defaultError
+      // * @return {Function}
+      // */
+      //defaults: function(defaultError) {
+      //	return function(err) {
+      //		if (isScope(err)) {
+      //			return err;
+      //		} else {
+      //			if (defaultError instanceof defaultErroror) {
+      //				throw defaultError;
+      //			} else {
+      //				throw new Error(defaultError);
+      //			}
+      //		}
+      //	};
+      //}
+    }));
+
+    function is(err, type) {
+      return err && (
+        err === type
+        || err.type === type
+        || err.iaAuthType === type
+        || (err instanceof Error && err.message === type)
+      );
+    }
+
+    function isScope(err) {
+      var result = false;
+      angular.forEach(values, function(value, key) {
+        if (is(err, value)) {
+          result = true;
+        }
+      });
+      return true;
+    }
+  })
+;
+
+'use strict';
+
+angular.module('ia.auth')
 	// state redirections
 	.run(function($rootScope, $state, iaAuth, iaAuthERROR) {
 		var events = iaAuth.events,
@@ -535,9 +550,13 @@ angular.module('ia.auth')
 					event.preventDefault();
 					$state.go(config.indexState, config.indexStateParams);
 				}
-			} else if (iaAuth.helper.isStateRestricted(toState)) {
+			} else if (iaAuth.helper.isStateRestricted(toState)
+					|| toState.name === config.indexState && config.restrictedIndex) {
 				if (iaAuth.isResolved()) {
-					if (!iaAuth.isAuthorizedState(toState)) {
+					if (toState.name === config.indexState && config.restrictedIndex) {
+						event.preventDefault();
+						$state.go(config.restrictedIndex, config.restrictedIndexParams);
+					} else if (!iaAuth.isAuthorizedState(toState)) {
 						if (iaAuth.isAuthenticated()) {
 							event.preventDefault();
 							$state.go(config.forbiddenState, config.forbiddenStateParams);
@@ -569,6 +588,7 @@ angular.module('ia.auth')
 				if (iaAuth.isAuthenticated()) {
 					redirected = redirect([
 						[iaAuth.returnToState, iaAuth.returnToStateParams],
+						[config.restrictedIndex, config.restrictedIndexParams],
 						[config.indexState, config.indexStateParams],
 						[config.loginState, config.loginStateParams]
 					]);

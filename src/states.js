@@ -13,9 +13,13 @@ angular.module('ia.auth')
 					event.preventDefault();
 					$state.go(config.indexState, config.indexStateParams);
 				}
-			} else if (iaAuth.helper.isStateRestricted(toState)) {
+			} else if (iaAuth.helper.isStateRestricted(toState)
+					|| toState.name === config.indexState && config.restrictedIndex) {
 				if (iaAuth.isResolved()) {
-					if (!iaAuth.isAuthorizedState(toState)) {
+					if (toState.name === config.indexState && config.restrictedIndex) {
+						event.preventDefault();
+						$state.go(config.restrictedIndex, config.restrictedIndexParams);
+					} else if (!iaAuth.isAuthorizedState(toState)) {
 						if (iaAuth.isAuthenticated()) {
 							event.preventDefault();
 							$state.go(config.forbiddenState, config.forbiddenStateParams);
@@ -47,6 +51,7 @@ angular.module('ia.auth')
 				if (iaAuth.isAuthenticated()) {
 					redirected = redirect([
 						[iaAuth.returnToState, iaAuth.returnToStateParams],
+						[config.restrictedIndex, config.restrictedIndexParams],
 						[config.indexState, config.indexStateParams],
 						[config.loginState, config.loginStateParams]
 					]);
