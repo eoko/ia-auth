@@ -378,7 +378,7 @@ angular.module('ia.auth')
 				 * @returns {Promise}
 				 */
 				me.logout = function() {
-					var args = arguments,
+					var args = Array.prototype.slice.call(arguments, 0),
 						previousUserData;
 					return copySessionUserData()
 						.then(function(userData) {
@@ -387,6 +387,7 @@ angular.module('ia.auth')
 						})
 						.then(function(authenticated) {
 							if (authenticated) {
+								args.unshift(_authData);
 								return adapter.logout.apply(adapter, args);
 							}
 						})

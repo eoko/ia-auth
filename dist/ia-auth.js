@@ -42,27 +42,27 @@ angular.module('ia.auth')
 			 * @param err
 			 * @param type
 			 */
-			is: is,
-			/**
-			 * Returns a promise error handler that let its error
-			 * pass if it is an iaAuth.ERROR, else it returns the
-			 * default provided error.
-			 * @param defaultError
-			 * @return {Function}
-			 */
-			defaults: function(defaultError) {
-				return function(err) {
-					if (isScope(err)) {
-						return err;
-					} else {
-						if (defaultError instanceof defaultErroror) {
-							throw defaultError;
-						} else {
-							throw new Error(defaultError);
-						}
-					}
-				};
-			}
+			is: is
+			///**
+			// * Returns a promise error handler that let its error
+			// * pass if it is an iaAuth.ERROR, else it returns the
+			// * default provided error.
+			// * @param defaultError
+			// * @return {Function}
+			// */
+			//defaults: function(defaultError) {
+			//	return function(err) {
+			//		if (isScope(err)) {
+			//			return err;
+			//		} else {
+			//			if (defaultError instanceof defaultErroror) {
+			//				throw defaultError;
+			//			} else {
+			//				throw new Error(defaultError);
+			//			}
+			//		}
+			//	};
+			//}
 		}));
 
 		function is(err, type) {
@@ -378,7 +378,7 @@ angular.module('ia.auth')
 				 * @returns {Promise}
 				 */
 				me.logout = function() {
-					var args = arguments,
+					var args = Array.prototype.slice.call(arguments, 0),
 						previousUserData;
 					return copySessionUserData()
 						.then(function(userData) {
@@ -387,6 +387,7 @@ angular.module('ia.auth')
 						})
 						.then(function(authenticated) {
 							if (authenticated) {
+								args.unshift(_authData);
 								return adapter.logout.apply(adapter, args);
 							}
 						})
