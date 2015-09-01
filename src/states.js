@@ -16,7 +16,8 @@ angular.module('ia.auth')
 			} else if (iaAuth.helper.isStateRestricted(toState)
 					|| toState.name === config.indexState && config.restrictedIndex) {
 				if (iaAuth.isResolved()) {
-					if (toState.name === config.indexState && config.restrictedIndex) {
+					if (toState.name === config.indexState && config.restrictedIndex
+							&& iaAuth.isAuthorizedState(config.indexState)) {
 						event.preventDefault();
 						$state.go(config.restrictedIndex, config.restrictedIndexParams);
 					} else if (!iaAuth.isAuthorizedState(toState)) {
