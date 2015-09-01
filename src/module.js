@@ -42,7 +42,7 @@ angular.module('ia.auth')
 			/**
 			 * State used instead of `indexState` for authenticated users.
 			 */
-			restrictedIndex: undefined,
+			resbtrictedIndex: undefined,
 			restrictedIndexParams: undefined,
 			/**
 			 * @cfg {String|Object} Auth adapter. Can be the name of a service or an object,
