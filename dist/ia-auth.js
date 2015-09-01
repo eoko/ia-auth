@@ -554,7 +554,7 @@ angular.module('ia.auth')
 					|| toState.name === config.indexState && config.restrictedIndex) {
 				if (iaAuth.isResolved()) {
 					if (toState.name === config.indexState && config.restrictedIndex
-							&& iaAuth.isAuthorizedState(config.indexState)) {
+							&& iaAuth.isAuthorizedState(config.restrictedIndex)) {
 						event.preventDefault();
 						$state.go(config.restrictedIndex, config.restrictedIndexParams);
 					} else if (!iaAuth.isAuthorizedState(toState)) {
