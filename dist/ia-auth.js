@@ -42,7 +42,7 @@ angular.module('ia.auth')
 			/**
 			 * State used instead of `indexState` for authenticated users.
 			 */
-			resbtrictedIndex: undefined,
+			restrictedIndex: undefined,
 			restrictedIndexParams: undefined,
 			/**
 			 * @cfg {String|Object} Auth adapter. Can be the name of a service or an object,
@@ -475,7 +475,8 @@ angular.module('ia.auth')
       invalidCredentials: 'ia.auth:invalid-creds',
       invalidAuthData: 'ia.auth:auth-data-invalid',
       networkFailure: 'ia.auth:error:network',
-      serverFailure: 'ia.auth:error:server'
+      serverFailure: 'ia.auth:error:server',
+      unknownFailure: 'ia.auth:error:unknown'
     };
 
     $provide.constant('iaAuthERROR', angular.extend(values, {
