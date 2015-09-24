@@ -9,6 +9,8 @@ var dirs = {
 };
 dirs.adaptersDist = dirs.dist + '/adapters';
 
+gulp.task('default', ['build']);
+
 gulp.task('build', [
 	'concat:sources',
 	'copy:adapters'
