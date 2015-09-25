@@ -23,6 +23,13 @@ angular.module('ia.auth')
 	})
 	.provider('iaAuth', function iaAuthProvider() {
 
+		this.config = configure;
+		/**
+		 * Restangular interceptor to add authorization header(s) to outgoing
+		 * requests.
+		 */
+		this.restangularRequestInterceptor = restangularRequestInterceptor;
+
 		var config = {
 			/**
 			 * State used as index of the application. Used for redirect.
@@ -133,8 +140,6 @@ angular.module('ia.auth')
 			publishUserData: 'user',
 		};
 
-		this.config = configure;
-
 		function configure(cfg) {
 			if (arguments.length === 0) {
 				return config;
@@ -143,6 +148,7 @@ angular.module('ia.auth')
 			}
 		}
 
+		var instance = null;
 		this.$get = function iaAuthFactory($q, $state, iaAuthSession, $rootScope, $timeout,
 			ia_AUTH_EVENT, iaAuthHelper, $injector, iaAuthERROR) {
 
@@ -152,7 +158,7 @@ angular.module('ia.auth')
 					error: function() {}
 				};
 
-			return new iaAuth();
+			return instance = new iaAuth();
 
 			function iaAuth() {
 				var me = this;
@@ -187,6 +193,30 @@ angular.module('ia.auth')
 				// synchronously (which is required for ui.router access control)
 				me.isResolved = function() {
 					return _resolved;
+				};
+
+				/**
+				 * Returns authorization header(s) for the current auth data. It
+				 * should be checked that the auth data are indeed available
+				 * before calling this method, because it doesn't do the check
+				 * itself.
+				 *
+				 * It is called with the arguments of the request interceptor
+				 * wrapped in an array.
+				 *
+				 * @param {Array} args
+				 * @returns {Object}
+				 */
+				me.authorizationHeaders = function(args) {
+					var headers = adapter.autorizationHeaders(_authData, args);
+					if (angular.isString(headers)) {
+						var result = {},
+							parts = headers.split(':');
+						result[parts[0].trim()] = parts[1].trim();
+						return result;
+					} else {
+						return headers;
+					}
 				};
 
 				/**
@@ -408,5 +438,18 @@ angular.module('ia.auth')
 				};
 			}
 		};
+
+		function restangularRequestInterceptor(data, operation, what, url, headers) {
+			if (instance && instance.isAuthenticated()) {
+				var authHeaders = instance.authorizationHeaders(
+					Array.prototype.slice.call(arguments, 0)
+				);
+				if (authHeaders) {
+					return {
+						headers: angular.extend({}, authHeaders, headers)
+					};
+				}
+			}
+		}
 	})
 ;
