@@ -208,7 +208,7 @@ angular.module('ia.auth')
 				 * @returns {Object}
 				 */
 				me.authorizationHeaders = function(args) {
-					var headers = adapter.autorizationHeaders(_authData, args);
+					var headers = adapter.authorizationHeaders(_authData, args);
 					if (angular.isString(headers)) {
 						var result = {},
 							parts = headers.split(':');
