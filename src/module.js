@@ -269,6 +269,7 @@ angular.module('ia.auth')
 					;
 				};
 
+				var identityResolving = false;
 				/**
 				 * Reads stored identity (i.e. auth + user data), and resolve when auth state is
 				 * known; that is, when authentication and authorization can be resolved synchronously.
@@ -281,6 +282,13 @@ angular.module('ia.auth')
 				 * @returns {$q.Promise}
 				 */
 				me.resolveIdentity = function resolveIdentity() {
+					if (!identityResolving) {
+						identityResolving = true;
+						doResolveIdentity();
+					}
+				};
+
+				function doResolveIdentity() {
 					// read session's auth data
 					return session.authData()
 						.then(function(authData) {
@@ -323,6 +331,7 @@ angular.module('ia.auth')
 								_authData = _userData = null;
 								_resolved = true;
 								// let the promise resolve with undefined
+								$rootScope.$broadcast(events.change, null, null);
 							} else {
 								// we've got something unexpected here, we can't consider
 								// that auth is resolved
@@ -331,7 +340,7 @@ angular.module('ia.auth')
 							}
 						})
 					;
-				};
+				}
 
 				/**
 				 * Reads current user data from session, reducing any error to warning, and

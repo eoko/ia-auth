@@ -269,6 +269,7 @@ angular.module('ia.auth')
 					;
 				};
 
+				var identityResolving = false;
 				/**
 				 * Reads stored identity (i.e. auth + user data), and resolve when auth state is
 				 * known; that is, when authentication and authorization can be resolved synchronously.
@@ -281,6 +282,13 @@ angular.module('ia.auth')
 				 * @returns {$q.Promise}
 				 */
 				me.resolveIdentity = function resolveIdentity() {
+					if (!identityResolving) {
+						identityResolving = true;
+						doResolveIdentity();
+					}
+				};
+
+				function doResolveIdentity() {
 					// read session's auth data
 					return session.authData()
 						.then(function(authData) {
@@ -323,6 +331,7 @@ angular.module('ia.auth')
 								_authData = _userData = null;
 								_resolved = true;
 								// let the promise resolve with undefined
+								$rootScope.$broadcast(events.change, null, null);
 							} else {
 								// we've got something unexpected here, we can't consider
 								// that auth is resolved
@@ -331,7 +340,7 @@ angular.module('ia.auth')
 							}
 						})
 					;
-				};
+				}
 
 				/**
 				 * Reads current user data from session, reducing any error to warning, and
@@ -617,15 +626,25 @@ angular.module('ia.auth')
 					// resolveIdentity resolves when auth state is known, authenticated or not,
 					// so we only need to handle success and we let failures (ie. unexpected
 					// errors) bubble up
-					iaAuth.resolveIdentity().then(function() {
-						// retry our state transition. this time, we'll pass in the resolved logic
-						$state.go(toState, toParams);
-					});
+					if (config.redirectOnChange) { // TODO redirectOnChange cannot really be optional anymore...
+						iaAuth.returnToState = toState;
+						iaAuth.returnToStateParams = toParams;
+						iaAuth.resolveIdentity();
+					} else {
+						iaAuth.resolveIdentity(function() {
+							// retry our state transition. this time, we'll pass in the resolved logic
+							$state.go(toState, toParams);
+						});
+					}
 				}
 			}
 		});
 
-		$rootScope.$on(events.change, function() {
+		$rootScope.$on(events.change, function(userData, previousUserData) {
+			// TODO This has become *very* messy... Should really separate
+			//      state change event (may happens several times) from state
+			//      resolved (happens only once)
+			//
 			// redirect to return or index page on login (or resolve auth),
 			// and index, return, or forbidden page on logout (or resolve no auth)
 			if (config.redirectOnChange) {
@@ -638,13 +657,27 @@ angular.module('ia.auth')
 						[config.loginState, config.loginStateParams]
 					]);
 				}
-				if (!redirected && !iaAuth.isAuthorizedState($state.current)) {
-					redirect([
-						[config.indexState, config.indexStateParams],
-						[iaAuth.returnToState, iaAuth.returnToStateParams],
-						[config.loginState, config.loginStateParams]
-					]);
+				if (!redirected) {
+					if (iaAuth.returnToState && !previousUserData) {
+						// we're not authenticated, but we want to go to an auth state, so login
+						redirect([
+							[iaAuth.returnToState, iaAuth.returnToStateParams], // in case state is open
+							[config.loginState, config.loginStateParams],
+							[config.indexState, config.indexStateParams]
+						]);
+					} else {
+						// we're not authenticated
+						if (!iaAuth.isAuthorizedState($state.$current)) {
+							redirect([
+								[config.indexState, config.indexStateParams],
+								[iaAuth.returnToState, iaAuth.returnToStateParams],
+								[config.loginState, config.loginStateParams]
+							]);
+						}
+					}
 				}
+				// reset returnToState
+				iaAuth.returnToState = iaAuth.returnToStateParams = null;
 			}
 			// publish user data
 			var publish = config.publishUserData;
